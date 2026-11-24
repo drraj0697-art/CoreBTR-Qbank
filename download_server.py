@@ -20,21 +20,6 @@ class DownloadHandler(BaseHTTPRequestHandler):
             return
 
         size = HTML_FILE.stat().st_size
-        if route == "/":
-            body = ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
-                    "<title>CoreBTR Qbank download</title><main style='font:16px system-ui;max-width:650px;margin:12vh auto;padding:24px'>"
-                    "<h1>CoreBTR Question Bank</h1><p>Download the standalone HTML file.</p>"
-                    "<a href='/download' download='CoreBTR-Qbank.html' style='display:inline-block;padding:14px 20px;"
-                    "background:#4f46e5;color:white;border-radius:10px;text-decoration:none;font-weight:700'>"
-                    "Download CoreBTR-Qbank.html</a></main>").encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
-            return
-
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Disposition", 'attachment; filename="CoreBTR-Qbank.html"')
@@ -42,9 +27,13 @@ class DownloadHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        with HTML_FILE.open("rb") as stream:
-            while chunk := stream.read(1024 * 1024):
-                self.wfile.write(chunk)
+        try:
+            with HTML_FILE.open("rb") as stream:
+                while chunk := stream.read(1024 * 1024):
+                    self.wfile.write(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            # A client may cancel a large download; don't emit a noisy traceback.
+            pass
 
     def log_message(self, fmt, *args):
         print(f"{self.address_string()} - {fmt % args}", flush=True)
